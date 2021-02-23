@@ -1,8 +1,12 @@
 package model
 
 import (
+	"encoding/base64"
+	"fmt"
 	"ginblog/utils/errmsg"
+	"log"
 
+	"golang.org/x/crypto/scrypt"
 	"gorm.io/gorm"
 )
 
@@ -24,6 +28,7 @@ func CheckUser(name string) int {
 
 //新增用户
 func CreateUser(data *User) int {
+	//data.Password = ScryptPw(data.Password)
 	err := db.Create(&data).Error
 	if err != nil {
 		return errmsg.ERROR // 500
@@ -32,24 +37,55 @@ func CreateUser(data *User) int {
 }
 
 // 查询用户列表
-func GetUsers(username string, pageSize int, pageNum int) ([]User, int64) {
+func GetUsers(pageSize int, pageNum int) []User {
 	var users []User
-	var total int64
+	fmt.Println(pageSize, pageNum)
 
-	if username != "" {
-		db.Select("id,username,role").Where(
-			"username LIKE ?", username+"%",
-		).Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users)
-		db.Model(&users).Where(
-			"username LIKE ?", username+"%",
-		).Count(&total)
-		return users, total
+	err = db.Select("id,username,role").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		fmt.Println(err)
+		return nil
 	}
-	db.Select("id,username,role").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users)
-	db.Model(&users).Count(&total)
+	return users
+}
 
+// 编辑用户
+func EditUser(id int, data *User) int {
+	var user User
+	var maps = make(map[string]interface{})
+	maps["username"] = data.Username
+	maps["role"] = data.Role
+	err = db.Model(&user).Where("id = ? ", id).Updates(maps).Error
 	if err != nil {
-		return users, 0
+		return errmsg.ERROR
 	}
-	return users, total
+	return errmsg.SUCCSE
+}
+
+// 删除用户
+func DeleteUser(id int) int {
+	var user User
+	err = db.Where("id = ? ", id).Delete(&user).Error
+	if err != nil {
+		return errmsg.ERROR
+	}
+	return errmsg.SUCCSE
+}
+
+// 密码加密
+func (u *User) BeforeSave() {
+	u.Password = ScryptPw(u.Password)
+}
+
+func ScryptPw(password string) string {
+	const KeyLen = 10
+	salt := make([]byte, 8)
+	salt = []byte{12, 32, 4, 6, 66, 22, 222, 11}
+	hashPw, err := scrypt.Key([]byte(password), salt, 16384, 8, 1, KeyLen)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fpw := base64.StdEncoding.EncodeToString(hashPw)
+	return fpw
 }
