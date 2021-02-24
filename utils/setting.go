@@ -11,6 +11,7 @@ var (
 
 	AppMode  string
 	HttpPort string
+	JwtKey   string
 
 	Db         string
 	Dbhost     string
@@ -32,7 +33,8 @@ func init() {
 
 func LoadServer() {
 	AppMode = Cfg.Section("server").Key("AppMode").MustString("debug")
-	HttpPort = Cfg.Section("server").Key("HttpPort").MustString("3000")
+	HttpPort = Cfg.Section("server").Key("HttpPort").MustString(":8005")
+	JwtKey = Cfg.Section("server").Key("JwtKey").MustString("sdvsd233ve4ger343swerwe234234dgsd234gsgsdg")
 }
 
 func LoadData() {
